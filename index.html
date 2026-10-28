@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>我的財務回報簿 v4 Mobile</title>
+<style>
+:root{--bg:#f6f3ee;--card:#fff;--ink:#2f2c28;--muted:#77716a;--accent:#6f7f73;--line:#e7e0d8;--warn:#a65d4e;--good:#557b5e;--shadow:0 8px 28px rgba(60,50,40,.08)}
+*{box-sizing:border-box} body{margin:0;font-family:system-ui,-apple-system,"Noto Sans TC","Microsoft JhengHei",sans-serif;background:var(--bg);color:var(--ink)}
+.wrap{max-width:1100px;margin:auto;padding:22px}.hero{display:flex;justify-content:space-between;gap:18px;align-items:end;margin-bottom:18px}.hero h1{margin:0;font-size:clamp(28px,5vw,44px)}.hero p{margin:6px 0 0;color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.stat,.panel{background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow)}.stat{padding:16px}.stat small{color:var(--muted)}.stat strong{display:block;font-size:25px;margin-top:5px}.negative{color:var(--warn)}.positive{color:var(--good)}
+.panel{padding:18px;margin-top:14px}.panel h2{margin:0 0 14px;font-size:20px}.form{display:grid;grid-template-columns:1.2fr 1fr 1fr 2fr auto;gap:9px}input,select,textarea,button{font:inherit;border-radius:11px;border:1px solid var(--line);padding:11px;background:#fff;color:var(--ink)}button{cursor:pointer;background:var(--accent);color:#fff;border:none;font-weight:700}button.secondary{background:#eee9e2;color:var(--ink)}button.danger{background:#a65d4e}.actions{display:flex;flex-wrap:wrap;gap:8px}.cards{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}.bank{border:1px solid var(--line);border-radius:14px;padding:12px}.bank label{font-size:13px;color:var(--muted)}.bank input{width:100%;margin-top:6px}.bank b{display:block;margin-bottom:6px}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{padding:10px;border-bottom:1px solid var(--line);text-align:left}th{color:var(--muted);font-weight:600}.scroll{overflow:auto}.hint{color:var(--muted);font-size:13px;line-height:1.6}.export{width:100%;min-height:260px;white-space:pre-wrap}.badge{display:inline-block;background:#eee9e2;border-radius:999px;padding:5px 9px;font-size:12px;color:#625d57}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.spacer{flex:1}
+@media(max-width:850px){.grid{grid-template-columns:repeat(2,1fr)}.cards{grid-template-columns:repeat(2,1fr)}.form{grid-template-columns:1fr 1fr}.form textarea{grid-column:1/-1}.form button{grid-column:1/-1}.hero{display:block}}
+@media(max-width:520px){
+  body{font-size:16px;-webkit-text-size-adjust:100%}
+  .wrap{padding:10px;max-width:100%;overflow-x:hidden}
+  .hero{margin-bottom:12px}.hero h1{font-size:30px;line-height:1.15}.hero p{font-size:14px}.hero .badge{margin-top:9px}
+  .grid{grid-template-columns:1fr 1fr;gap:8px}.stat{padding:12px;border-radius:14px}.stat small{font-size:12px}.stat strong{font-size:18px;overflow-wrap:anywhere}
+  .panel{padding:13px;margin-top:10px;border-radius:15px}.panel h2{font-size:18px;margin-bottom:10px}
+  .cards{grid-template-columns:1fr;gap:8px}
+  .form,.panel .form{display:grid!important;grid-template-columns:1fr!important;gap:8px!important}
+  .form>*{grid-column:1/-1!important;min-width:0;width:100%}
+  input,select,textarea,button{width:100%;min-height:46px;font-size:16px;padding:11px 12px}
+  textarea{resize:vertical}
+  .row{display:grid;grid-template-columns:1fr;gap:8px;align-items:stretch}.row .spacer{display:none}.row h2{margin-bottom:2px}.row button,.row label{width:100%;text-align:center}
+  .actions{display:grid;grid-template-columns:1fr;gap:8px}
+  .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -4px;padding:0 4px}
+  table{min-width:680px;font-size:13px}th,td{padding:8px;white-space:nowrap}td:nth-child(5){white-space:normal;min-width:150px}
+  .export{min-height:220px}
+  .hint{font-size:12px;line-height:1.55}
+}
+@media(max-width:360px){.grid{grid-template-columns:1fr}.hero h1{font-size:27px}}
+</style>
+</head>
+<body><div class="wrap">
+<div class="hero"><div><h1>我的財務回報簿</h1><p>先活下來，再把卡債慢慢壓下去 XDDD</p></div><span class="badge">v5 GitHub Pages｜手機優先｜資料只存在這個瀏覽器</span></div>
+<div class="grid">
+ <div class="stat"><small>目前現金</small><strong id="cashStat">$0</strong></div>
+ <div class="stat"><small>信用卡總負債</small><strong class="negative" id="cardStat">$0</strong></div>
+ <div class="stat"><small>信貸剩餘本金</small><strong class="negative" id="loanStat">$0</strong></div>
+ <div class="stat"><small>股票目前市值</small><strong id="stockStat">$0</strong></div>
+</div>
+
+<div class="panel"><h2>新增一筆紀錄</h2>
+<div class="form" style="grid-template-columns:1fr 1fr 1fr 1.3fr 1fr 2fr auto">
+<input id="date" type="date">
+<select id="type" onchange="updateEntryFields()"><option>消費</option><option>收入</option><option>信用卡繳款</option><option>信貸繳款</option><option>股票賣出</option><option>股票買進</option></select>
+<select id="category"><option>餐飲</option><option>交通</option><option>住宿</option><option>香油錢</option><option>娛樂</option><option>保險</option><option>醫療/健保</option><option>電話/網路</option><option>購物</option><option>其他</option></select>
+<select id="payment"><option value="現金／簽帳金融卡">現金／簽帳金融卡</option><option value="玉山信用卡">玉山信用卡</option><option value="永豐信用卡">永豐信用卡</option><option value="中信信用卡">中信信用卡</option><option value="富邦信用卡">富邦信用卡</option><option value="匯豐信用卡">匯豐信用卡</option></select>
+<input id="amount" type="number" min="0" placeholder="金額">
+<textarea id="note" rows="1" placeholder="例如：外送、11/7 加油、薪水"></textarea><button onclick="addEntry()">＋記一筆</button></div>
+<p class="hint" id="entryHint">消費：選分類＋付款方式。簽帳金融卡視同現金；信用卡會增加該卡欠款。繳信用卡不是消費，請另外選「信用卡繳款」。</p></div>
+
+<div class="panel"><div class="row"><h2>本月紀錄</h2><span class="spacer"></span><button class="secondary" onclick="clearEntries()">清空紀錄</button></div><div class="scroll"><table><thead><tr><th>日期</th><th>類型</th><th>分類／付款</th><th>金額</th><th>備註</th><th></th></tr></thead><tbody id="log"></tbody></table></div></div>
+
+<div class="panel"><div class="row"><h2>基本盤</h2><span class="spacer"></span></div>
+<div class="form" style="grid-template-columns:repeat(4,1fr)">
+<label>現金 / 存款<input id="cash" type="number" min="0" step="1"></label>
+<label>信貸剩餘本金<input id="loan" type="number" min="0" step="1"></label>
+<label>股票目前市值<input id="stock" type="number" min="0" step="1"></label>
+<label>每月信貸繳款<input id="loanPay" type="number" min="0" step="1"></label>
+</div><p class="hint">這裡是「現在的快照」。每次月底或資料有大變動時更新即可。</p></div>
+
+<div class="panel"><h2>五張信用卡</h2><div class="cards" id="banks"></div><p class="hint">填「目前欠款」最直覺。如果只有額度與可用額度，也可以用：額度－可用額度 ≈ 目前占用。</p></div>
+
+<div class="panel"><div class="row"><h2>匯出給 ChatGPT</h2><span class="spacer"></span><button onclick="makeExport()">產生財務摘要</button><button class="secondary" onclick="copyExport()">複製</button></div><textarea class="export" id="exportBox" placeholder="按「產生財務摘要」，再整段貼到 ChatGPT 給我即可。"></textarea><p class="hint">不會自動傳送任何銀行資料。這只是把你輸入的內容整理成文字，讓你自己複製貼上。</p></div>
+
+<div class="panel"><div class="row"><h2>備份 / 還原</h2><button class="secondary" onclick="downloadBackup()">下載備份 JSON</button><label style="border:1px solid var(--line);padding:9px 12px;border-radius:11px;cursor:pointer">匯入備份<input type="file" accept="application/json" onchange="importBackup(event)" style="display:none"></label><button class="danger" onclick="wipeAll()">全部清除</button></div><p class="hint">換電腦或清除瀏覽器資料前，記得先下載備份。這個版本沒有伺服器，也沒有登入功能。</p></div>
+</div>
+<script>
+const bankNames=['玉山','永豐','中信','富邦','匯豐'];
+let state=JSON.parse(localStorage.getItem('financeTrackerV1')||'null')||{cash:0,loan:0,stock:0,loanPay:7260,banks:{},entries:[],plans:[]};
+const $=id=>document.getElementById(id); const money=n=>new Intl.NumberFormat('zh-TW',{style:'currency',currency:'TWD',maximumFractionDigits:0}).format(Number(n)||0);
+function save(){state.cash=+$('cash').value||0;state.loan=+$('loan').value||0;state.stock=+$('stock').value||0;state.loanPay=+$('loanPay').value||0;bankNames.forEach(b=>state.banks[b]=+document.querySelector(`[data-bank="${b}"]`).value||0);localStorage.setItem('financeTrackerV1',JSON.stringify(state));renderStats()}
+function render(){ $('cash').value=state.cash||'';$('loan').value=state.loan||'';$('stock').value=state.stock||'';$('loanPay').value=state.loanPay||7260;$('banks').innerHTML=bankNames.map(b=>`<div class="bank"><b>${b}</b><label>目前欠款<input data-bank="${b}" type="number" min="0" value="${state.banks[b]||''}"></label></div>`).join('');document.querySelectorAll('input').forEach(x=>x.addEventListener('change',save));$('date').value=new Date().toISOString().slice(0,10);updateEntryFields();renderEntries();renderStats()}
+function renderStats(){let cards=bankNames.reduce((s,b)=>s+(+state.banks[b]||0),0);$('cashStat').textContent=money(state.cash);$('cardStat').textContent=money(cards);$('loanStat').textContent=money(state.loan);$('stockStat').textContent=money(state.stock)}
+function bankFromPayment(p=''){return bankNames.find(b=>p.startsWith(b))||''}
+function updateEntryFields(){let t=$('type').value, isSpend=t==='消費', isCardPay=t==='信用卡繳款';$('category').disabled=!isSpend;$('payment').disabled=!(isSpend||isCardPay);if(isCardPay){$('payment').innerHTML=bankNames.map(b=>`<option value="${b}信用卡">${b}信用卡</option>`).join('');$('entryHint').textContent='信用卡繳款：現金會減少，同時該張卡欠款會下降；這不是新的消費。';}else if(isSpend){$('payment').innerHTML='<option value="現金／簽帳金融卡">現金／簽帳金融卡</option>'+bankNames.map(b=>`<option value="${b}信用卡">${b}信用卡</option>`).join('');$('entryHint').textContent='消費：選分類＋付款方式。簽帳金融卡視同現金；信用卡會增加該卡欠款。';}else{$('entryHint').textContent='收入、信貸、股票交易會直接更新上方快照；備註可以寫來源或用途。';}}
+function applyEntry(e,dir=1){let a=(+e.amount||0)*dir,t=e.type,p=e.payment||'',b=bankFromPayment(p);if(t==='消費'){if(p==='現金／簽帳金融卡')state.cash-=a;else if(b)state.banks[b]=(state.banks[b]||0)+a;}else if(t==='收入'){state.cash+=a;}else if(t==='信用卡繳款'){state.cash-=a;if(b)state.banks[b]=Math.max(0,(state.banks[b]||0)-a);}else if(t==='信貸繳款'){state.cash-=a;state.loan=Math.max(0,state.loan-a);}else if(t==='股票賣出'){state.cash+=a;state.stock=Math.max(0,state.stock-a);}else if(t==='股票買進'){state.cash-=a;state.stock+=a;}}
+function addEntry(){let a=+$('amount').value||0;if(!a)return alert('先填金額～');let e={id:Date.now(),date:$('date').value,type:$('type').value,category:$('type').value==='消費'?$('category').value:'',payment:(['消費','信用卡繳款'].includes($('type').value))?$('payment').value:'',amount:a,note:$('note').value.trim()};applyEntry(e,1);state.entries.unshift(e);$('amount').value='';$('note').value='';save();render();}
+function renderEntries(){$('log').innerHTML=state.entries.map(e=>`<tr><td>${e.date||''}</td><td>${e.type}</td><td>${esc([e.category,e.payment].filter(Boolean).join('｜')||'—')}</td><td>${money(e.amount)}</td><td>${esc(e.note)}</td><td><button class="secondary" onclick="delEntry(${e.id})">刪</button></td></tr>`).join('')||'<tr><td colspan="6" class="hint">還沒有紀錄</td></tr>'}
+function delEntry(id){let e=state.entries.find(e=>e.id===id);if(e&&e.payment!==undefined)applyEntry(e,-1);state.entries=state.entries.filter(e=>e.id!==id);save();render();} function clearEntries(){if(confirm('確定清空所有本月紀錄？')){state.entries=[];save();renderEntries()}}
+function addPlan(){let b=+$('planBudget').value||0;if(!$('planName').value.trim())return alert('先填行程名稱～');state.plans.push({id:Date.now(),date:$('planDate').value,name:$('planName').value.trim(),budget:b,note:$('planNote').value.trim()});$('planName').value='';$('planBudget').value='';$('planNote').value='';save();renderPlans()}
+function renderPlans(){$('plans').innerHTML=state.plans.map(p=>`<tr><td>${p.date||''}</td><td>${esc(p.name)}</td><td>${money(p.budget)}</td><td>${esc(p.note)}</td><td><button class="secondary" onclick="delPlan(${p.id})">刪</button></td></tr>`).join('')||'<tr><td colspan="5" class="hint">尚無行程</td></tr>'} function delPlan(id){state.plans=state.plans.filter(p=>p.id!==id);save();renderPlans()}
+function makeExport(){save();let cards=bankNames.reduce((s,b)=>s+(+state.banks[b]||0),0), net=(state.cash+state.stock)-(cards+state.loan);let entries=state.entries.map(e=>`${e.date||'未填日期'}｜${e.type}${e.category?'｜'+e.category:''}${e.payment?'｜'+e.payment:''}｜${money(e.amount)}${e.note?'｜'+e.note:''}`).join('\n')||'（無）';$('exportBox').value=`【財務更新｜${new Date().toLocaleDateString('zh-TW')}】\n\n目前現金：${money(state.cash)}\n信用卡總負債：${money(cards)}\n${bankNames.map(b=>`- ${b}：${money(state.banks[b]||0)}`).join('\n')}\n信貸剩餘本金：${money(state.loan)}\n每月信貸繳款：${money(state.loanPay)}\n股票目前市值：${money(state.stock)}\n簡易淨值（現金＋股票－卡債－信貸）：${money(net)}\n\n【近期紀錄】\n${entries}\n\n請依照這份最新資料，幫我更新現金流、卡債變化、是否需要賣股票，以及下一步的還款安排。`;}
+async function copyExport(){if(!$('exportBox').value)makeExport();await navigator.clipboard.writeText($('exportBox').value);alert('已複製，可以直接貼給 ChatGPT XDDD')}
+function downloadBackup(){save();let blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='財務回報簿備份_'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(a.href)}
+function importBackup(ev){let f=ev.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{state=JSON.parse(r.result);localStorage.setItem('financeTrackerV1',JSON.stringify(state));render();alert('備份已匯入');}catch(e){alert('這個備份檔讀不到喔');}};r.readAsText(f)}
+function wipeAll(){if(confirm('真的要把這個瀏覽器裡的財務資料全部清掉？')){localStorage.removeItem('financeTrackerV1');location.reload()}}
+function esc(s=''){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
+render();
+</script></body></html>
