@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>我的財務回報簿 v4 Mobile</title>
+<title>我的財務回報簿 v5.2</title>
+<link rel="manifest" href="./manifest.webmanifest"><meta name="theme-color" content="#6f7f73">
 <style>
 :root{--bg:#f6f3ee;--card:#fff;--ink:#2f2c28;--muted:#77716a;--accent:#6f7f73;--line:#e7e0d8;--warn:#a65d4e;--good:#557b5e;--shadow:0 8px 28px rgba(60,50,40,.08)}
 *{box-sizing:border-box} body{margin:0;font-family:system-ui,-apple-system,"Noto Sans TC","Microsoft JhengHei",sans-serif;background:var(--bg);color:var(--ink)}
@@ -34,7 +35,7 @@ table{width:100%;border-collapse:collapse;font-size:14px}th,td{padding:10px;bord
 </style>
 </head>
 <body><div class="wrap">
-<div class="hero"><div><h1>我的財務回報簿</h1><p>先活下來，再把卡債慢慢壓下去 XDDD</p></div><span class="badge">v5.1 GitHub Pages｜自動連動｜手機優先</span></div>
+<div class="hero"><div><h1>我的財務回報簿</h1><p>先活下來，再把卡債慢慢壓下去 XDDD</p></div><span class="badge">v5.2｜載具 CSV 分享匯入</span></div>
 <div class="grid">
  <div class="stat"><small>目前現金</small><strong id="cashStat">$0</strong></div>
  <div class="stat"><small>信用卡總負債</small><strong class="negative" id="cardStat">$0</strong></div>
@@ -52,6 +53,10 @@ table{width:100%;border-collapse:collapse;font-size:14px}th,td{padding:10px;bord
 <textarea id="note" rows="1" placeholder="例如：外送、11/7 加油、薪水"></textarea><button onclick="addEntry()">＋記一筆</button></div>
 <p class="hint" id="entryHint">消費：選分類＋付款方式。簽帳金融卡視同現金；信用卡會增加該卡欠款。繳信用卡不是消費，請另外選「信用卡繳款」。</p></div>
 
+<div class="panel"><h2>載具發票匯入（測試版）</h2><p class="hint">可直接選 CSV；安裝成 Android PWA 後，也可試著從檔案管理員「分享」CSV 到本記帳 APP。匯入前先備份！10 月舊發票請選「只存紀錄」，避免重複扣款。</p>
+<input id="invoiceFile" type="file" accept=".csv,text/csv,text/plain" onchange="loadInvoiceFile(event)">
+<div class="row" style="margin:10px 0"><label>匯入方式 <select id="invoiceMode"><option value="history">只存歷史紀錄（不變動餘額）</option><option value="post">確認後計入現金／信用卡</option></select></label><button class="secondary" onclick="renderInvoiceQueue()">重新整理待確認</button></div>
+<p class="hint" id="invoiceStatus">尚未讀取 CSV。</p><div id="invoiceQueue"></div></div>
 <div class="panel"><div class="row"><h2>本月紀錄</h2><span class="spacer"></span><button class="secondary" onclick="clearEntries()">清空紀錄</button></div><div class="scroll"><table><thead><tr><th>日期</th><th>類型</th><th>分類／付款</th><th>金額</th><th>備註</th><th></th></tr></thead><tbody id="log"></tbody></table></div></div>
 
 <div class="panel"><div class="row"><h2>基本盤</h2><span class="spacer"></span></div>
@@ -91,4 +96,38 @@ function importBackup(ev){let f=ev.target.files[0];if(!f)return;let r=new FileRe
 function wipeAll(){if(confirm('真的要把這個瀏覽器裡的財務資料全部清掉？')){localStorage.removeItem('financeTrackerV1');location.reload()}}
 function esc(s=''){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
 render();
+
+// 載具匯入：保留 financeTrackerV1 舊資料結構，新增 invoiceKeys 及 invoiceQueue
+state.invoiceKeys ||= [];
+state.invoiceQueue ||= [];
+const invoicePayments=['','現金／簽帳金融卡',...bankNames.map(x=>x+'信用卡')];
+function parseCsv(text){
+ text=text.replace(/^\uFEFF/,'');let rows=[],row=[],field='',quoted=false;
+ for(let i=0;i<text.length;i++){let c=text[i];if(quoted){if(c==='"'&&text[i+1]==='"'){field+='"';i++}else if(c==='"')quoted=false;else field+=c}else if(c==='"')quoted=true;else if(c===','){row.push(field);field=''}else if(c==='\n'||c==='\r'){if(c==='\r'&&text[i+1]==='\n')i++;row.push(field);if(row.some(x=>x!==''))rows.push(row);row=[];field=''}else field+=c}
+ if(field||row.length){row.push(field);rows.push(row)}return rows;
+}
+async function loadInvoiceFile(ev){const file=ev.target.files?.[0];if(file)await receiveInvoiceFile(file);ev.target.value=''}
+async function receiveInvoiceFile(file){
+ try{if(file.size>5e6)throw Error('檔案超過 5MB');let buf=await file.arrayBuffer();let txt=new TextDecoder('utf-8',{fatal:true}).decode(buf);let rows=parseCsv(txt);let headers=rows.shift().map(x=>x.trim());let needed=['消費時間','發票號碼','店家名稱','總計'];if(!needed.every(x=>headers.includes(x)))throw Error('CSV 欄位不符合發票存摺格式');
+ let map=new Map();for(const r of rows){let obj=Object.fromEntries(headers.map((h,i)=>[h,(r[i]||'').trim()]));let no=obj['發票號碼'];if(!no)continue;let k=no+'|'+obj['消費時間'];let v=map.get(k)||{key:k,invoiceNo:no,date:obj['消費時間'].slice(0,10).replaceAll('/','-'),shop:obj['店家名稱'],amount:null,items:[]};if(obj['總計']!==''){let n=Number(obj['總計'].replaceAll(',',''));if(!Number.isFinite(n))throw Error('有無法辨識的發票金額');v.amount=n}if(obj['消費品項'])v.items.push(obj['消費品項']);map.set(k,v)}
+ let count=0;for(const v of map.values()){if(v.amount===null||v.amount<0)continue;if(state.invoiceKeys.includes(v.key)||state.invoiceQueue.some(x=>x.key===v.key)||state.entries.some(x=>x.invoiceKey===v.key))continue;state.invoiceQueue.push({...v,category:'其他',payment:'',mode:document.getElementById('invoiceMode').value});count++}
+ persist();renderInvoiceQueue();$('invoiceStatus').textContent=`讀取 ${map.size} 張發票；新增 ${count} 張待確認，重複資料已略過。`;
+ }catch(err){$('invoiceStatus').textContent='匯入失敗：'+err.message}
+}
+function renderInvoiceQueue(){
+ const q=state.invoiceQueue||[];$('invoiceQueue').innerHTML=q.length?q.map((v,i)=>`<div style="border-top:1px solid var(--line);padding:12px 0"><b>${esc(v.shop)}｜${money(v.amount)}</b><div class="hint">${esc(v.date)}｜${esc(v.invoiceNo)}｜${v.items.length} 個品項</div><div class="row" style="margin-top:8px;gap:6px;flex-wrap:wrap"><select onchange="setInvoice(${i},'category',this.value)">${['餐飲','交通','住宿','香油錢','娛樂','保險','醫療/健保','電話/網路','購物','其他'].map(c=>`<option ${v.category===c?'selected':''}>${c}</option>`).join('')}</select><select onchange="setInvoice(${i},'payment',this.value)">${invoicePayments.map(p=>`<option value="${p}" ${v.payment===p?'selected':''}>${p||'選付款方式'}</option>`).join('')}</select><select onchange="setInvoice(${i},'mode',this.value)"><option value="history" ${v.mode==='history'?'selected':''}>歷史（不扣款）</option><option value="post" ${v.mode==='post'?'selected':''}>計入餘額</option></select><button onclick="commitInvoice(${i})">確認匯入</button><button class="secondary" onclick="dropInvoice(${i})">略過</button></div></div>`).join(''):'<p class="hint">目前沒有待確認發票。</p>';
+}
+function setInvoice(i,k,v){if(!state.invoiceQueue[i])return;state.invoiceQueue[i][k]=v;persist()}
+function commitInvoice(i){let v=state.invoiceQueue[i];if(!v)return;if(v.mode==='post'&&!v.payment)return alert('計入餘額前，請選付款方式');if(state.invoiceKeys.includes(v.key))return alert('已匯入過');let e={id:Date.now()+Math.floor(Math.random()*100000),date:v.date,type:'消費',category:v.category,payment:v.payment,amount:v.amount,note:'載具｜'+v.shop+'｜'+v.invoiceNo,invoiceKey:v.key,historyOnly:v.mode==='history'};
+ if(!e.historyOnly)applyEntry(e,1);state.entries.unshift(e);state.invoiceKeys.push(v.key);state.invoiceQueue.splice(i,1);persist();render();renderInvoiceQueue();}
+function dropInvoice(i){state.invoiceQueue.splice(i,1);persist();renderInvoiceQueue()}
+// 歷史紀錄刪除不可反向調整現有餘額；刪除後可重新匯入
+const originalDelEntry=delEntry;
+delEntry=function(id){let e=state.entries.find(x=>x.id===id);if(e?.historyOnly){state.entries=state.entries.filter(x=>x.id!==id);state.invoiceKeys=state.invoiceKeys.filter(x=>x!==e.invoiceKey);persist();render();return}if(e?.invoiceKey)state.invoiceKeys=state.invoiceKeys.filter(x=>x!==e.invoiceKey);originalDelEntry(id)};
+// 透過 service worker 暫存分享檔案，避免將私人 CSV 傳到遠端
+async function openShareDb(){return new Promise((resolve,reject)=>{let req=indexedDB.open('financeShareV1',1);req.onupgradeneeded=()=>req.result.createObjectStore('incoming');req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
+async function receiveShared(){try{let db=await openShareDb();let data=await new Promise((resolve,reject)=>{let tx=db.transaction('incoming','readwrite'),store=tx.objectStore('incoming'),req=store.get('latest');req.onsuccess=()=>{let v=req.result;if(v)store.delete('latest');resolve(v)};req.onerror=()=>reject(req.error)});db.close();if(data){let file=new File([data.bytes],data.name||'shared.csv',{type:'text/csv'});await receiveInvoiceFile(file)}}catch(e){console.warn('分享檔案讀取失敗',e)}}
+if('serviceWorker'in navigator){navigator.serviceWorker.register('./sw.js').then(()=>{receiveShared();navigator.serviceWorker.addEventListener('message',e=>{if(e.data?.type==='shared-invoice')receiveShared()})}).catch(console.warn)}
+renderInvoiceQueue();
+
 </script></body></html>
